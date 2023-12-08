@@ -12,4 +12,4 @@
 
 ## License
 
-Database and Contents Copyright (c) [MaxMind](https://www.maxmind.com/), Inc.
+Database and Contents Copyright (c) [MaxMind](https://www.maxmind.com/) Inc.
