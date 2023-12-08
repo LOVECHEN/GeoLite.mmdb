@@ -54,4 +54,4 @@ jobs:
     - name: Send failure notification
       if: failure()
       run: |
-        echo "Workflow failed."
+        echo "Workflow GeoLite.mmdb failed."
