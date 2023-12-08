@@ -1,0 +1,57 @@
+name: Publish GeoLite.mmdb
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+  schedule:
+    - cron: 1 0 */2 * *
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - name: Download and Extract GeoLite.mmdb
+      run: |
+        mkdir -p download upload
+        wget -nv -O- "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=${{ secrets.LICENSE_KEY }}&suffix=tar.gz" | tar zxv -C download
+        wget -nv -O- "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${{ secrets.LICENSE_KEY }}&suffix=tar.gz" | tar zxv -C download
+        wget -nv -O- "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${{ secrets.LICENSE_KEY }}&suffix=tar.gz" | tar zxv -C download
+        mv download/GeoLite*/*.mmdb upload
+        rm -rf download
+        echo "TAG_NAME=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+
+    - name: Commit and Push GeoLite Databases
+      run: |
+        cd upload
+        git init
+        git config user.name "${{ github.actor }}"
+        git config user.email "${{ github.actor }}@users.noreply.github.com"
+        git checkout -b download
+        git add .
+        git commit -m "${{ env.TAG_NAME }}"
+        git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+        git push -f origin download
+
+    - name: Publish GeoLite Databases to GitHub Releases
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        body: ${{ env.TAG_NAME }}
+        files: upload/*.mmdb
+
+    - name: Cleanup Old GitHub Releases
+      uses: dev-drprasad/delete-older-releases@v0.3.2
+      with:
+        keep_latest: 2
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Send failure notification
+      if: failure()
+      run: |
+        echo "Workflow failed."
